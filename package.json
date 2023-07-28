@@ -2,7 +2,7 @@
     "name": "ev-vscode",
     "displayName": "ev-vscode",
     "description": "",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "repository": {"url": "https://github.com/evalldor/ev-vscode"},
     "publisher": "evalldor",
     "engines": {
@@ -34,147 +34,7 @@
                 "title": "EV: scroll"
             }
         ],
-        "keybindings": [
-            {
-                "key": "ctrl+space",
-                "command": "ev.setMark",
-                "when": "textInputFocus && !suggestWidgetVisible"
-            },
-            {
-                "key": "ctrl+g",
-                "command": "ev.cancelMark",
-                "when": "textInputFocus && !suggestWidgetVisible && ev.markIsSet"
-            },
-            {
-                "key": "ctrl+g",
-                "command": "ev.cancelMark",
-                "when": "editorHasSelection && textInputFocus"
-            },
-            {
-                "key": "ctrl+p",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "up"
-                }
-            },
-            {
-                "key": "ctrl+n",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "down"
-                }
-            },
-            {
-                "key": "ctrl+b",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "left"
-                }
-            },
-            {
-                "key": "ctrl+f",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "right"
-                }
-            },
-            {
-                "key": "ctrl+a",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible && !ev.atBeginningOfLine",
-                "args": {
-                    "to": "wrappedLineStart"
-                }
-            },
-            {
-                "key": "ctrl+a",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible && ev.atBeginningOfLine",
-                "args": {
-                    "to": "wrappedLineFirstNonWhitespaceCharacter"
-                }
-            },
-            {
-                "key": "ctrl+e",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "wrappedLineEnd"
-                }
-            },
-            {
-                "key": "alt+f",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "right",
-                    "by": "WordStart"
-                }
-            },
-            {
-                "key": "alt+b",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "left",
-                    "by": "WordStart"
-                }
-            },
-            {
-                "key": "alt+n",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "down",
-                    "by": "line",
-                    "value": 5
-                }
-            },
-            {
-                "key": "alt+p",
-                "command": "ev.cursorMove",
-                "when": "textInputFocus && !suggestWidgetVisible",
-                "args": {
-                    "to": "up",
-                    "by": "line",
-                    "value": 5
-                }
-            },
-            {
-                "key": "ctrl+v",
-                "command": "ev.scroll",
-                "args": {
-                    "by": "halfPage",
-                    "to": "down",
-                    "revealCursor": true,
-                    "value": 1
-                }
-            },
-            {
-                "key": "alt+v",
-                "command": "ev.scroll",
-                "args": {
-                    "by": "halfPage",
-                    "to": "up",
-                    "revealCursor": true,
-                    "value": 1
-                }
-            },
-            {
-                "key": "alt+w",
-                "command": "runCommands",
-                "args": {
-                    "commands": [
-                        "editor.action.clipboardCopyAction",
-                        "ev.cancelMark"
-                    ]
-                }
-            }
-        ]
+        "keybindings": []
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
