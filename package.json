@@ -32,7 +32,15 @@
             {
                 "command": "ev.scroll",
                 "title": "EV: scroll"
-            }
+            },
+            {
+                "command": "ev.repositionView",
+                "title": "EV: Reposition view"
+            },
+            {
+                "command": "ev.test",
+                "title": "EV: test"
+            }     
         ],
         "keybindings": []
     },

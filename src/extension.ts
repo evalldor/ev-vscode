@@ -10,16 +10,16 @@ export function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
     }
 
-    // registerCommand('ev.test', (args) => {
-    //     let docs = vscode.workspace.textDocuments;
-    //     console.log(docs);
-    //     let names = docs.map(doc => doc.fileName);
-    //     vscode.window.showQuickPick(names).then(name => {
-    //         let idx = names.indexOf(name);
-    //         let doc = docs[idx];
-    //         vscode.window.showTextDocument(doc);
-    //     });
-    // });
+    registerCommand('ev.test', (args) => {
+        // let docs = vscode.workspace.textDocuments;
+        // console.log(docs);
+        // let names = docs.map(doc => doc.fileName);
+        // vscode.window.showQuickPick(names).then(name => {
+        //     let idx = names.indexOf(name);
+        //     let doc = docs[idx];
+        //     vscode.window.showTextDocument(doc);
+        // });
+    });
 
     // vscode.commands.getCommands().then(cmds => console.log(cmds));
 
@@ -61,9 +61,32 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
 
-    // registerCommand('ev.repositionView', (args) => {
+    registerCommand('ev.repositionView', (args) => {
+        // TODO:
+        // if at top -> goto bottom
+        // if at middle -> goto top
+        // else -> goto middle
 
-    // });
+        if (!vscode.window.activeTextEditor) {
+            return;
+        }
+
+        if (!vscode.window.activeTextEditor.selection) {
+            return;
+        }
+
+        let currentLine = vscode.window.activeTextEditor.selection.active.line;
+
+        let lineToReveal = currentLine;
+
+        vscode.window.activeTextEditor.revealRange(
+            new vscode.Range(
+                new vscode.Position(lineToReveal, 0), 
+                new vscode.Position(lineToReveal, 0)
+            ), 
+            vscode.TextEditorRevealType.InCenter
+        );
+    });
 
     let editorChangeListener = vscode.workspace.onDidChangeTextDocument((e) => {
         vscode.commands.executeCommand("ev.cancelMark");
