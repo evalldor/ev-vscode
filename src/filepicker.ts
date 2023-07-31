@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import * as path from "path";
 import Fuse from 'fuse.js';
-
+import * as constants from './constants';
 
 function openNewFile(filepath: string): void {
     vscode.workspace
@@ -33,14 +33,14 @@ export class FilePicker {
         this.quickPick.title = "Filepicker";
         this.quickPick.onDidChangeValue((e) => {
             this.fileMode();
-            this.currentMode.onUpdate(this)
+            this.currentMode.onUpdate(this);
         });
         this.quickPick.onDidAccept(() => this.currentMode.onAccept(this));
     }
 
     public show(): void {
         this.fileMode();
-        vscode.commands.executeCommand('setContext', 'ev.filepicker.isVisible', true);
+        vscode.commands.executeCommand('setContext', constants.CONTEXT_FILEPICKER_ISVISIBLE, true);
         this.quickPick.show();
         if (vscode.window.activeTextEditor && !vscode.window.activeTextEditor.document.isUntitled) {
             this.goto(path.dirname(vscode.window.activeTextEditor.document.uri.fsPath) + path.sep);
@@ -76,7 +76,7 @@ export class FilePicker {
     }
 
     public onHide(): void {
-        vscode.commands.executeCommand('setContext', 'ev.filepicker.isVisible', false);
+        vscode.commands.executeCommand('setContext', constants.CONTEXT_FILEPICKER_ISVISIBLE, false);
     }
 
     public goto(filepath: string): void {

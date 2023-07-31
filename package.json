@@ -2,7 +2,7 @@
     "name": "ev-vscode",
     "displayName": "ev-vscode",
     "description": "",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "repository": {
         "url": "https://github.com/evalldor/ev-vscode"
     },
@@ -20,15 +20,15 @@
     "contributes": {
         "commands": [
             {
-                "command": "ev.setMark",
+                "command": "ev.mark.set",
                 "title": "EV: Set Mark"
             },
             {
-                "command": "ev.cancelMark",
+                "command": "ev.mark.cancel",
                 "title": "EV: Cancel Mark"
             },
             {
-                "command": "ev.cursorMove",
+                "command": "ev.cursor.move",
                 "title": "EV: cursorMove"
             },
             {
@@ -36,7 +36,7 @@
                 "title": "EV: scroll"
             },
             {
-                "command": "ev.repositionView",
+                "command": "ev.scroll.toCursor",
                 "title": "EV: Reposition view"
             },
             {
