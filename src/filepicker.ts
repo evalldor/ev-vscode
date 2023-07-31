@@ -160,10 +160,14 @@ class FilePickerFileMode implements FilePickerMode {
                                 includeScore: true,
                                 shouldSort: true,
                                 isCaseSensitive: false,
-                                keys: ['basename'],
-                                threshold: config.get(constants.CONFIG_FILEPICKER_MATCHING_THRESHOLD)
+                                keys: ['basename']
                                 //includeMatches: true
                             };
+                            
+                            let threshold = config.get(constants.CONFIG_FILEPICKER_MATCHING_THRESHOLD);
+                            if(typeof(threshold) === 'number') {
+                                options["threshold"] = threshold;
+                            }
 
                             const fuse: Fuse<FileItem> = new Fuse(items, options);
                             let result = fuse.search(currentFilter);
