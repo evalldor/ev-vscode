@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { FilePicker } from './filepicker';
 import * as constants from './constants';
+import { UndoTree } from './undotree';
 
 function capitalizeFirstLetter(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -10,7 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // vscode.commands.getCommands().then(cmds => console.log(cmds));
 
-    function registerCommand(commandId: string, run: (...args: any[]) => void): void {
+    function registerCommand(commandId: string, run: (...args: any[]) => any): void {
         context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
     }
 
@@ -25,19 +26,18 @@ export function activate(context: vscode.ExtensionContext) {
         // });
     });
 
-    let filepicker = new FilePicker();
+    initCursor(context);
+    initFilepicker(context);
+    // initUndoTree(context);
+}
 
-    registerCommand(constants.COMMAND_FILEPICKER_OPEN, (args) => {
-        filepicker.show();
-    });
+export function deactivate() { }
 
-    registerCommand(constants.COMMAND_FILEPICKER_TOGGLE_MODE, (args) => {
-        filepicker.toggleMode();
-    });
 
-    registerCommand(constants.COMMAND_FILEPICKER_GO_UP, (args) => {
-        filepicker.goUpOneLevel();
-    });
+function initCursor(context: vscode.ExtensionContext) {
+    function registerCommand(commandId: string, run: (...args: any[]) => any): void {
+        context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
+    }
 
     let markIsSet: boolean = false;
 
@@ -69,13 +69,10 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-
-
     registerCommand(constants.COMMAND_SCROLL, (args) => {
         args["select"] = markIsSet;
         vscode.commands.executeCommand("editorScroll", args);
     });
-
 
     registerCommand(constants.COMMAND_SCROLL_TO_CURSOR, (args) => {
         // TODO:
@@ -104,6 +101,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
     });
 
+
     let editorChangeListener = vscode.workspace.onDidChangeTextDocument((e) => {
         vscode.commands.executeCommand(constants.COMMAND_MARK_CANCEL);
     });
@@ -125,4 +123,78 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(selectionChangeListener);
 }
 
-export function deactivate() { }
+function initFilepicker(context: vscode.ExtensionContext) {
+    function registerCommand(commandId: string, run: (...args: any[]) => any): void {
+        context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
+    }
+
+    let filepicker = new FilePicker();
+
+    registerCommand(constants.COMMAND_FILEPICKER_OPEN, (args) => {
+        filepicker.show();
+    });
+
+    registerCommand(constants.COMMAND_FILEPICKER_TOGGLE_MODE, (args) => {
+        filepicker.toggleMode();
+    });
+
+    registerCommand(constants.COMMAND_FILEPICKER_GO_UP, (args) => {
+        filepicker.goUpOneLevel();
+    });
+}
+
+function initUndoTree(context: vscode.ExtensionContext) {
+    function registerCommand(commandId: string, run: (...args: any[]) => any): void {
+        context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
+    }
+
+
+    let editorUndoTreeMap = new Map<string, UndoTree>();
+
+    registerCommand("ev.undo", (args) => {
+        let uri = vscode.window.activeTextEditor.document.uri.toString();
+        
+        if(!editorUndoTreeMap.has(uri)) {
+            editorUndoTreeMap.set(uri, new UndoTree(uri));
+        }
+
+        let undotree = editorUndoTreeMap.get(uri);
+        undotree.undo();
+    });
+
+    registerCommand("ev.redo", (args) => {
+        let uri = vscode.window.activeTextEditor.document.uri.toString();
+        
+        if(!editorUndoTreeMap.has(uri)) {
+            editorUndoTreeMap.set(uri, new UndoTree(uri));
+        }
+
+        let undotree = editorUndoTreeMap.get(uri);
+        undotree.redo();
+    });
+
+    let editorChangeListener = vscode.workspace.onDidChangeTextDocument((e) => {
+        if(e.contentChanges.length === 0) {
+            return;
+        }
+
+        let uri = e.document.uri.toString();
+        
+        if(!editorUndoTreeMap.has(uri)) {
+            editorUndoTreeMap.set(uri, new UndoTree(uri));
+        }
+
+        let undotree = editorUndoTreeMap.get(uri);
+        e.contentChanges.forEach(change => undotree.pushEdit(change));
+    });
+
+    // for handling uri updates
+    // vscode.workspace.onDidSaveTextDocument
+
+    
+
+    context.subscriptions.push(editorChangeListener);
+}
+
+
+
