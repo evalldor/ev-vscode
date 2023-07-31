@@ -2,7 +2,7 @@
     "name": "ev-vscode",
     "displayName": "ev-vscode",
     "description": "",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "repository": {
         "url": "https://github.com/evalldor/ev-vscode"
     },
@@ -56,6 +56,16 @@
                 "title": "EV: test"
             }
         ],
+        "configuration": {
+            "title": "EV",
+            "properties": {
+                "ev.filepicker.matchingThreshold": {
+                    "type": "number",
+                    "default": 0.49,
+                    "description": "Don't show results with a score higher than this. Value between 0 and 1"
+                }
+            }
+        },
         "keybindings": []
     },
     "scripts": {

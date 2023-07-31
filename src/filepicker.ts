@@ -4,6 +4,7 @@ import * as path from "path";
 import Fuse from 'fuse.js';
 import * as constants from './constants';
 
+
 function openNewFile(filepath: string): void {
     vscode.workspace
         .openTextDocument(vscode.Uri.file(filepath).with({ scheme: "untitled" }))
@@ -40,8 +41,10 @@ export class FilePicker {
 
     public show(): void {
         this.fileMode();
+        this.quickPick.value = "";
         vscode.commands.executeCommand('setContext', constants.CONTEXT_FILEPICKER_ISVISIBLE, true);
         this.quickPick.show();
+
         if (vscode.window.activeTextEditor && !vscode.window.activeTextEditor.document.isUntitled) {
             this.goto(path.dirname(vscode.window.activeTextEditor.document.uri.fsPath) + path.sep);
         } else {
@@ -72,7 +75,7 @@ export class FilePicker {
 
     public hide(): void {
         this.quickPick.hide();
-        this.quickPick.value = "";
+
     }
 
     public onHide(): void {
@@ -149,11 +152,16 @@ class FilePickerFileMode implements FilePickerMode {
 
                                 return (a.filetype & vscode.FileType.Directory) ? -1 : 1;
                             });
+                            filePicker.quickPick.items = items;
                         } else {
+                            let config = vscode.workspace.getConfiguration("ev");
+                            
                             const options = {
-                                includeScore: false,
+                                includeScore: true,
+                                shouldSort: true,
                                 isCaseSensitive: false,
                                 keys: ['basename'],
+                                threshold: config.get(constants.CONFIG_FILEPICKER_MATCHING_THRESHOLD)
                                 //includeMatches: true
                             };
 
@@ -162,10 +170,14 @@ class FilePickerFileMode implements FilePickerMode {
                             items = result.map(res => res.item);
 
                             // TODO: highlight matches
-                            //console.log(result); 
+                            // console.log(result);
+                            if (items.length > 0) {
+                                filePicker.quickPick.items = items;
+                            } else {
+                                filePicker.actionMode();
+                            }
                         }
-
-                        filePicker.quickPick.items = items;
+                        
 
                     }, (error) => {
                         filePicker.quickPick.items = [];

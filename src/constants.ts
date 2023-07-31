@@ -13,3 +13,5 @@ export const COMMAND_MARK_CANCEL = "ev.mark.cancel";
 export const CONTEXT_MARK_ISSET = "ev.mark.isSet";
 export const CONTEXT_CURSOR_AT_BEGINNING_OF_LINE = "ev.cursor.atBeginningOfLine";
 export const CONTEXT_FILEPICKER_ISVISIBLE = "ev.filepicker.isVisible";
+
+export const CONFIG_FILEPICKER_MATCHING_THRESHOLD = "filepicker.matchingThreshold";
