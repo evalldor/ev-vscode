@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import {FilePicker} from './filepicker';
 
 function capitalizeFirstLetter(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -10,6 +11,8 @@ export function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
     }
 
+    
+
     registerCommand('ev.test', (args) => {
         // let docs = vscode.workspace.textDocuments;
         // console.log(docs);
@@ -19,6 +22,20 @@ export function activate(context: vscode.ExtensionContext) {
         //     let doc = docs[idx];
         //     vscode.window.showTextDocument(doc);
         // });
+    });
+
+    let filepicker = new FilePicker();
+
+    registerCommand('ev.filepicker.open', (args) => {
+        filepicker.show();
+    });
+
+    registerCommand('ev.filepicker.toggleMode', (args) => {
+        filepicker.toggleMode();
+    });
+
+    registerCommand('ev.filepicker.goUpOneLevel', (args) => {
+        filepicker.goUpOneLevel();
     });
 
     // vscode.commands.getCommands().then(cmds => console.log(cmds));

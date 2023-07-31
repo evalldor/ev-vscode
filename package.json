@@ -2,8 +2,10 @@
     "name": "ev-vscode",
     "displayName": "ev-vscode",
     "description": "",
-    "version": "0.0.2",
-    "repository": {"url": "https://github.com/evalldor/ev-vscode"},
+    "version": "0.0.3",
+    "repository": {
+        "url": "https://github.com/evalldor/ev-vscode"
+    },
     "publisher": "evalldor",
     "engines": {
         "vscode": "^1.80.0"
@@ -38,9 +40,21 @@
                 "title": "EV: Reposition view"
             },
             {
+                "command": "ev.filepicker.open",
+                "title": "EV: Open filepicker"
+            },
+            {
+                "command": "ev.filepicker.toggleMode",
+                "title": "EV: Toggle filepicker actions"
+            },
+            {
+                "command": "ev.filepicker.goUpOneLevel",
+                "title": "EV: Go to parent directory in filepicker"
+            },
+            {
                 "command": "ev.test",
                 "title": "EV: test"
-            }     
+            }
         ],
         "keybindings": []
     },
@@ -53,16 +67,19 @@
         "test": "node ./out/test/runTest.js"
     },
     "devDependencies": {
-        "@types/vscode": "^1.80.0",
         "@types/glob": "^8.1.0",
         "@types/mocha": "^10.0.1",
         "@types/node": "20.2.5",
+        "@types/vscode": "^1.80.0",
         "@typescript-eslint/eslint-plugin": "^5.59.8",
         "@typescript-eslint/parser": "^5.59.8",
+        "@vscode/test-electron": "^2.3.2",
         "eslint": "^8.41.0",
         "glob": "^8.1.0",
         "mocha": "^10.2.0",
-        "typescript": "^5.1.3",
-        "@vscode/test-electron": "^2.3.2"
+        "typescript": "^5.1.3"
+    },
+    "dependencies": {
+        "fuse.js": "^6.6.2"
     }
 }
