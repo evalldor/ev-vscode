@@ -25,22 +25,33 @@ function openFolder(filepath: string): void {
     vscode.workspace.updateWorkspaceFolders(0, vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders.length : null, { uri: vscode.Uri.file(filepath) });
 }
 
+function openInNewWindow(filepath: string): void {
+    vscode.commands.executeCommand("vscode.openFolder", vscode.Uri.file(filepath), true);
+}
+
 export class FilePicker {
     quickPick: vscode.QuickPick<FileItem>;
     currentMode: FilePickerMode;
 
+    private fileMode: FilePickerFileMode;
+    private actionMode: FilePickerFileMode;
+
     constructor() {
         this.quickPick = vscode.window.createQuickPick();
         this.quickPick.title = "Filepicker";
+
+        this.fileMode = new FilePickerFileMode();
+        this.actionMode = new FilePickerActionMode();
+
         this.quickPick.onDidChangeValue((e) => {
-            this.fileMode();
+            this.activateFileMode();
             this.currentMode.onUpdate(this);
         });
         this.quickPick.onDidAccept(() => this.currentMode.onAccept(this));
     }
 
     public show(): void {
-        this.fileMode();
+        this.activateFileMode();
         this.quickPick.value = "";
         vscode.commands.executeCommand('setContext', constants.CONTEXT_FILEPICKER_ISVISIBLE, true);
         this.quickPick.show();
@@ -86,23 +97,25 @@ export class FilePicker {
         this.quickPick.value = filepath;
     }
 
-    public actionMode(): void {
-        this.currentMode = new FilePickerActionMode();
-        this.currentMode.onUpdate(this);
+    public activateActionMode(): void {
+        if (this.currentMode !== this.actionMode) {
+            this.currentMode = this.actionMode;
+            this.currentMode.onUpdate(this);
+        }
     }
 
-    public fileMode(): void {
-        if (!(this.actionMode instanceof FilePickerFileMode)) {
-            this.currentMode = new FilePickerFileMode();
+    public activateFileMode(): void {
+        if (this.currentMode !== this.fileMode) {
+            this.currentMode = this.fileMode;
             this.currentMode.onUpdate(this);
         }
     }
 
     public toggleMode(): void {
-        if (this.currentMode instanceof FilePickerFileMode) {
-            this.actionMode();
+        if (this.currentMode === this.fileMode) {
+            this.activateActionMode();
         } else {
-            this.fileMode();
+            this.activateFileMode();
         }
     }
 
@@ -114,6 +127,15 @@ export class FilePicker {
             this.goto(currentDir + path.sep);
         }
     }
+
+    public setValueFromSelectedItem() {
+        if (this.quickPick.activeItems.length === 0) {
+            return;
+        }
+
+        let item = this.quickPick.activeItems[0];
+        this.goto(item.uri.fsPath);
+    }
 }
 
 interface FilePickerMode {
@@ -123,6 +145,7 @@ interface FilePickerMode {
 
 class FilePickerFileMode implements FilePickerMode {
     onUpdate(filePicker: FilePicker): void {
+        filePicker.quickPick.busy = true;
         let newValue = filePicker.quickPick.value;
 
         if (newValue.length === 0) {
@@ -140,7 +163,7 @@ class FilePickerFileMode implements FilePickerMode {
                         let items = files.map((value: [string, vscode.FileType]) => {
                             let [name, type] = value;
 
-                            return new FileItem({ uri: vscode.Uri.file(path.join(dirToList, name)), type: type });
+                            return new FileItem(vscode.Uri.file(path.join(dirToList, name)), type);
                         });
 
                         if (currentFilter.length === 0) {
@@ -153,9 +176,10 @@ class FilePickerFileMode implements FilePickerMode {
                                 return (a.filetype & vscode.FileType.Directory) ? -1 : 1;
                             });
                             filePicker.quickPick.items = items;
+                            filePicker.quickPick.busy = false;
                         } else {
                             let config = vscode.workspace.getConfiguration("ev");
-                            
+
                             const options = {
                                 includeScore: true,
                                 shouldSort: true,
@@ -163,9 +187,9 @@ class FilePickerFileMode implements FilePickerMode {
                                 keys: ['basename']
                                 //includeMatches: true
                             };
-                            
+
                             let threshold = config.get(constants.CONFIG_FILEPICKER_MATCHING_THRESHOLD);
-                            if(typeof(threshold) === 'number') {
+                            if (typeof (threshold) === 'number') {
                                 options["threshold"] = threshold;
                             }
 
@@ -178,21 +202,25 @@ class FilePickerFileMode implements FilePickerMode {
                             if (items.length > 0) {
                                 filePicker.quickPick.items = items;
                             } else {
-                                filePicker.actionMode();
+                                filePicker.activateActionMode();
                             }
+                            filePicker.quickPick.busy = false;
                         }
-                        
+
 
                     }, (error) => {
                         filePicker.quickPick.items = [];
+                        filePicker.quickPick.busy = false;
                         console.error(error);
                     });
                 } else {
                     filePicker.quickPick.items = [];
+                    filePicker.quickPick.busy = false;
                     // file is not a directory.
                 }
             }, (error) => {
                 filePicker.quickPick.items = [];
+                filePicker.quickPick.busy = false;
                 // directory does not exist.
             });
     }
@@ -212,99 +240,105 @@ class FilePickerFileMode implements FilePickerMode {
 }
 
 class FilePickerActionMode implements FilePickerMode {
-    items: FileItem[];
+    createItems: ActionItem[];
+    openItems: ActionItem[];
 
     constructor() {
-        this.items = [];
-        this.items.push(new FileItem({ action: FileAction.createFile }));
-        this.items.push(new FileItem({ action: FileAction.addFolderToWorkspace }));
-        this.items.push(new FileItem({ action: FileAction.openFolder }));
+        this.createItems = [
+            new ActionItem("New file", (filePicker) => {
+                let value = filePicker.getCurrentValue();
+                filePicker.hide();
+                openNewFile(value);
+            })
+        ];
+        this.openItems = [
+            new ActionItem("Add folder to workspace", (filePicker) => {
+                let value = filePicker.getCurrentValue();
+                filePicker.hide();
+                addWorkspaceFolder(value);
+            }),
+            new ActionItem("Open folder", (filePicker) => {
+                let value = filePicker.getCurrentValue();
+                filePicker.hide();
+                openFolder(value);
+            }),
+            new ActionItem("Open in new window", (filePicker) => {
+                let value = filePicker.getCurrentValue();
+                filePicker.hide();
+                openInNewWindow(value);
+            })
+        ];
     }
 
     onUpdate(filePicker: FilePicker): void {
-        filePicker.quickPick.items = this.items;
+        filePicker.quickPick.busy = true;
+        let currentValue = filePicker.getCurrentValue();
+        let items = [];
+        vscode.workspace.fs.stat(vscode.Uri.file(currentValue)).then(stat => {
+            items = this.openItems;
+        }, error => {
+            items = this.createItems;
+        }).then(() => {
+            filePicker.quickPick.items = items;
+            filePicker.quickPick.busy = false;
+        });
+
+
     }
 
     onAccept(filePicker: FilePicker): void {
         if (filePicker.quickPick.activeItems.length > 0) {
             let item = filePicker.quickPick.activeItems[0];
-            let value = filePicker.getCurrentValue();
 
-            switch (item.action) {
-                case FileAction.createFile:
-                    filePicker.hide();
-                    openNewFile(value);
-                    break;
-                case FileAction.addFolderToWorkspace:
-                    filePicker.hide();
-                    addWorkspaceFolder(value);
-                    break;
-                case FileAction.openFolder:
-                    filePicker.hide();
-                    openFolder(value);
-                    break;
+            if (item instanceof ActionItem) {
+                item.run(filePicker);
+            } else {
+                console.error("Unexpected error");
             }
         }
+    }
+}
+
+class ActionItem implements vscode.QuickPickItem {
+    alwaysShow = true;
+    callback: (filePicker: FilePicker) => void;
+    label: string;
+
+    constructor(label: string, callback: (filePicker: FilePicker) => void) {
+        this.label = label;
+        this.callback = callback;
+    }
+
+    public run(filePicker: FilePicker) {
+        this.callback(filePicker);
     }
 }
 
 export class FileItem implements vscode.QuickPickItem {
     alwaysShow = true;
-    uri?: vscode.Uri;
-    filetype?: vscode.FileType;
-    basename?: string;
-    action?: FileAction;
+    uri: vscode.Uri;
+    filetype: vscode.FileType;
+    basename: string;
+    label: string;
 
-    constructor(params: { uri?: vscode.Uri, type?: vscode.FileType, action?: FileAction }) {
-        if (params.uri) {
-            this.uri = params.uri;
-            this.filetype = params.type;
-            this.basename = path.basename(this.uri.fsPath);
-        } else {
-            this.action = params.action;
+    constructor(uri: vscode.Uri, filetype: vscode.FileType) {
+        this.uri = uri;
+        this.filetype = filetype;
+        this.basename = path.basename(this.uri.fsPath);
+
+        switch (filetype) {
+            case vscode.FileType.Directory:
+                this.label = `$(folder) ${this.basename}`;
+                break;
+            case vscode.FileType.Directory | vscode.FileType.SymbolicLink:
+                this.label = `$(file-symlink-directory) ${this.basename}`;
+                break;
+            case vscode.FileType.File | vscode.FileType.SymbolicLink:
+                this.label = `$(file-symlink-file) ${this.basename}`;
+            default:
+                this.label = `$(file) ${this.basename}`;
+                break;
         }
     }
 
-    get label(): string {
-        let label: string;
-
-        if (this.action) {
-            switch (this.action) {
-                case FileAction.createFile:
-                    label = "New file";
-                    break;
-
-                case FileAction.addFolderToWorkspace:
-                    label = "Add folder to workspace";
-                    break;
-
-                case FileAction.openFolder:
-                    label = "Open folder";
-                    break;
-            }
-        } else {
-            switch (this.filetype) {
-                case vscode.FileType.Directory:
-                    label = `$(folder) ${this.basename}`;
-                    break;
-                case vscode.FileType.Directory | vscode.FileType.SymbolicLink:
-                    label = `$(file-symlink-directory) ${this.basename}`;
-                    break;
-                case vscode.FileType.File | vscode.FileType.SymbolicLink:
-                    label = `$(file-symlink-file) ${this.basename}`;
-                default:
-                    label = `$(file) ${this.basename}`;
-                    break;
-            }
-
-        }
-
-        return label;
-    }
-}
-
-enum FileAction {
-    createFile = 1,
-    addFolderToWorkspace = 2,
-    openFolder = 3,
 }

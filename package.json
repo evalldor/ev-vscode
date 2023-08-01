@@ -52,6 +52,10 @@
                 "title": "EV: Go to parent directory in filepicker"
             },
             {
+                "command": "ev.filepicker.setValueFromSelectedItem",
+                "title": "EV: Set the current value to that of the selected item, without opening it."
+            },
+            {
                 "command": "ev.test",
                 "title": "EV: test"
             }
@@ -62,7 +66,12 @@
                 "ev.filepicker.matchingThreshold": {
                     "type": "number",
                     "default": 0.49,
-                    "description": "Don't show results with a score higher than this. Value between 0 and 1"
+                    "description": "Don't show results with a score higher than this. Value between 0 and 1."
+                },
+                "ev.filepicker.searchDepth": {
+                    "type": "number",
+                    "default": 1,
+                    "description": "How deep to search for matching files. 1 corresponding to searching the current directory only."
                 }
             }
         },

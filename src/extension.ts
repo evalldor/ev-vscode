@@ -141,6 +141,10 @@ function initFilepicker(context: vscode.ExtensionContext) {
     registerCommand(constants.COMMAND_FILEPICKER_GO_UP, (args) => {
         filepicker.goUpOneLevel();
     });
+
+    registerCommand(constants.COMMAND_FILEPICKER_SET_VALUE_FROM_SELECTED, (args) => {
+        filepicker.setValueFromSelectedItem();
+    });
 }
 
 function initUndoTree(context: vscode.ExtensionContext) {
