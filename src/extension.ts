@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { FilePicker } from './filepicker';
 import * as constants from './constants';
 import { UndoTree } from './undotree';
+import { config, updateConfig } from "./config";
 
 function capitalizeFirstLetter(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -26,6 +27,13 @@ export function activate(context: vscode.ExtensionContext) {
         // });
     });
 
+    vscode.workspace.onDidChangeConfiguration(e => {
+        if(e.affectsConfiguration("ev")) {
+            updateConfig();
+        }
+    });
+
+    updateConfig();
     initCursor(context);
     initFilepicker(context);
     // initUndoTree(context);
@@ -199,6 +207,4 @@ function initUndoTree(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(editorChangeListener);
 }
-
-
 

@@ -3,7 +3,8 @@ import * as vscode from 'vscode';
 import * as path from "path";
 import Fuse from 'fuse.js';
 import * as constants from './constants';
-
+import { dir } from 'console';
+import { config } from "./config";
 
 function openNewFile(filepath: string): void {
     vscode.workspace
@@ -11,9 +12,9 @@ function openNewFile(filepath: string): void {
         .then((doc) => vscode.window.showTextDocument(doc, vscode.ViewColumn.Active));
 }
 
-function openFile(filepath: vscode.Uri): void {
+function openFile(filepath: string): void {
     vscode.workspace
-        .openTextDocument(filepath)
+        .openTextDocument(vscode.Uri.file(filepath))
         .then((doc) => vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Active, preview: false }));
 }
 
@@ -29,25 +30,51 @@ function openInNewWindow(filepath: string): void {
     vscode.commands.executeCommand("vscode.openFolder", vscode.Uri.file(filepath), true);
 }
 
+function debounce<T extends Function>(func: T, waitFor = 80) {
+    let timeout: any = 0;
+    let callable = (...args: any) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.call(this, ...args), waitFor);
+    };
+    return <T>(<any>callable);
+}
+
+function debounceStrict<T extends Function>(func: T, waitFor = 80) {
+    let timeout: any = undefined;
+    let callable = (...args: any) => {
+        if (!timeout) {
+            timeout = setTimeout(() => {
+                timeout = clearTimeout(timeout);
+                func.call(this, ...args);
+
+            }, waitFor);
+        }
+    };
+
+    return <T>(<any>callable);
+}
+
 export class FilePicker {
     quickPick: vscode.QuickPick<FileItem>;
     currentMode: FilePickerMode;
 
     private fileMode: FilePickerFileMode;
-    private actionMode: FilePickerFileMode;
+    private actionMode: FilePickerActionMode;
 
     constructor() {
         this.quickPick = vscode.window.createQuickPick();
         this.quickPick.title = "Filepicker";
 
-        this.fileMode = new FilePickerFileMode();
-        this.actionMode = new FilePickerActionMode();
+        this.fileMode = new FilePickerFileMode(this);
+        this.actionMode = new FilePickerActionMode(this);
 
         this.quickPick.onDidChangeValue((e) => {
             this.activateFileMode();
-            this.currentMode.onUpdate(this);
+            this.currentMode.onUpdate();
         });
-        this.quickPick.onDidAccept(() => this.currentMode.onAccept(this));
+        this.quickPick.onDidAccept(
+            () => this.currentMode.onAccept()
+        );
     }
 
     public show(): void {
@@ -73,7 +100,7 @@ export class FilePicker {
             currentDir = filepath;
             currentFilter = "";
         } else {
-            currentDir = path.dirname(filepath);
+            currentDir = path.dirname(filepath) + path.sep;
             currentFilter = path.basename(filepath).toLowerCase();
         }
 
@@ -86,7 +113,6 @@ export class FilePicker {
 
     public hide(): void {
         this.quickPick.hide();
-
     }
 
     public onHide(): void {
@@ -100,14 +126,14 @@ export class FilePicker {
     public activateActionMode(): void {
         if (this.currentMode !== this.actionMode) {
             this.currentMode = this.actionMode;
-            this.currentMode.onUpdate(this);
+            this.currentMode.onUpdate();
         }
     }
 
     public activateFileMode(): void {
         if (this.currentMode !== this.fileMode) {
             this.currentMode = this.fileMode;
-            this.currentMode.onUpdate(this);
+            this.currentMode.onUpdate();
         }
     }
 
@@ -124,7 +150,7 @@ export class FilePicker {
         if (currentFilter.length === 0) {
             this.goto(path.dirname(currentDir) + path.sep);
         } else {
-            this.goto(currentDir + path.sep);
+            this.goto(currentDir);
         }
     }
 
@@ -134,105 +160,120 @@ export class FilePicker {
         }
 
         let item = this.quickPick.activeItems[0];
-        this.goto(item.uri.fsPath);
+        this.goto(item.absolutePath);
     }
 }
 
 interface FilePickerMode {
-    onUpdate(filePicker: FilePicker): void;
-    onAccept(filePicker: FilePicker): void;
+    onUpdate(): any;
+    onAccept(): any;
 }
 
 class FilePickerFileMode implements FilePickerMode {
-    onUpdate(filePicker: FilePicker): void {
-        filePicker.quickPick.busy = true;
-        let newValue = filePicker.quickPick.value;
 
-        if (newValue.length === 0) {
-            return;
-        }
+    filePicker: FilePicker;
+    shouldClear: boolean = false;
 
-        const [dirToList, currentFilter] = filePicker.getCurrentInput();
+    directoryCache = new DirectoryCache(
+        (a, b) => { this.onCacheUpdate(a, b); },
+        () => { this.filePicker.quickPick.busy = true; },
+        () => { this.filePicker.quickPick.busy = false; });
 
-        vscode.workspace.fs.stat(vscode.Uri.file(dirToList))
-            .then((filestat) => {
-                if (filestat.type & vscode.FileType.Directory) {
+    render: (...args: any) => any;
 
-                    vscode.workspace.fs.readDirectory(vscode.Uri.file(dirToList)).then((files: [string, vscode.FileType][]) => {
-
-                        let items = files.map((value: [string, vscode.FileType]) => {
-                            let [name, type] = value;
-
-                            return new FileItem(vscode.Uri.file(path.join(dirToList, name)), type);
-                        });
-
-                        if (currentFilter.length === 0) {
-                            // When no filter is given, directories are listed before files.
-                            items.sort((a, b) => {
-                                if ((a.filetype & vscode.FileType.Directory) === (b.filetype & vscode.FileType.Directory)) {
-                                    return (a.basename.toLowerCase() < b.basename.toLowerCase()) ? -1 : 1;
-                                }
-
-                                return (a.filetype & vscode.FileType.Directory) ? -1 : 1;
-                            });
-                            filePicker.quickPick.items = items;
-                            filePicker.quickPick.busy = false;
-                        } else {
-                            let config = vscode.workspace.getConfiguration("ev");
-
-                            const options = {
-                                includeScore: true,
-                                shouldSort: true,
-                                isCaseSensitive: false,
-                                keys: ['basename']
-                                //includeMatches: true
-                            };
-
-                            let threshold = config.get(constants.CONFIG_FILEPICKER_MATCHING_THRESHOLD);
-                            if (typeof (threshold) === 'number') {
-                                options["threshold"] = threshold;
-                            }
-
-                            const fuse: Fuse<FileItem> = new Fuse(items, options);
-                            let result = fuse.search(currentFilter);
-                            items = result.map(res => res.item);
-
-                            // TODO: highlight matches
-                            // console.log(result);
-                            if (items.length > 0) {
-                                filePicker.quickPick.items = items;
-                            } else {
-                                filePicker.activateActionMode();
-                            }
-                            filePicker.quickPick.busy = false;
-                        }
-
-
-                    }, (error) => {
-                        filePicker.quickPick.items = [];
-                        filePicker.quickPick.busy = false;
-                        console.error(error);
-                    });
-                } else {
-                    filePicker.quickPick.items = [];
-                    filePicker.quickPick.busy = false;
-                    // file is not a directory.
-                }
-            }, (error) => {
-                filePicker.quickPick.items = [];
-                filePicker.quickPick.busy = false;
-                // directory does not exist.
-            });
+    constructor(filePicker: FilePicker) {
+        this.filePicker = filePicker;
+        // this.render = debounce.call(this, this._render, 50);
+        this.render = this._render;
     }
 
-    onAccept(filePicker: FilePicker): void {
-        if (filePicker.quickPick.activeItems.length > 0) {
-            let item = filePicker.quickPick.activeItems[0];
-            if (item.filetype & vscode.FileType.Directory) {
-                filePicker.goto(item.uri.fsPath + path.sep);
+    private onCacheUpdate(key: string, items: FileItem[]) {
+        // if key is subdir of current dir ...
+        const [dirToList, currentFilter] = this.filePicker.getCurrentInput();
+
+        const relative = path.relative(dirToList, key);
+        if (relative.length === 0 || (!relative.startsWith('..') && !path.isAbsolute(relative))) {
+            this.render();
+        }
+    }
+
+    private _render() {
+        const [dirToList, currentFilter] = this.filePicker.getCurrentInput();
+
+        if (currentFilter.length === 0) {
+            // When no filter is given, directories are listed before files.
+            let items = this.directoryCache.getFileListForDir(dirToList, 1);
+
+            items.sort((a, b) => {
+                if ((a.filetype & vscode.FileType.Directory) === (b.filetype & vscode.FileType.Directory)) {
+                    return (a.relativePath.toLowerCase() < b.relativePath.toLowerCase()) ? -1 : 1;
+                }
+
+                return (a.filetype & vscode.FileType.Directory) ? -1 : 1;
+            });
+
+            this.filePicker.quickPick.items = items;
+        } else {
+
+            let items = this.directoryCache.getFileListForDir(dirToList, config.filePickerFolderSearchDepth);
+
+            const options = {
+                includeScore: false,
+                shouldSort: true,
+                isCaseSensitive: false,
+                // ignoreLocation: true,
+                keys: ['relativePath'],
+                threshold: config.filePickerMatchingThreshold
+                //includeMatches: true
+            };
+
+            const fuse: Fuse<FileItem> = new Fuse(items, options);
+            let result = fuse.search(currentFilter);
+
+            // TODO: highlight matches
+
+            if (result.length > 0) {
+                this.filePicker.quickPick.items = result.map(res => res.item);
             } else {
-                filePicker.hide();
-                openFile(item.uri);
+                this.filePicker.activateActionMode();
+            }
+
+        }
+    }
+
+    async onUpdate(): Promise<void> {
+
+        const [dirToList, currentFilter] = this.filePicker.getCurrentInput();
+
+        try {
+            var filestat = await vscode.workspace.fs.stat(vscode.Uri.file(dirToList));
+            if (filestat.type & vscode.FileType.Directory) {
+
+                if (this.directoryCache.has(dirToList)) {
+                    this.render();
+                }
+
+                let searchDepth = (currentFilter.length === 0) ? 1 : config.filePickerFolderSearchDepth;
+                this.directoryCache.update(dirToList, searchDepth);
+
+            } else {
+                // file is not a directory.
+                this.filePicker.activateActionMode();
+            }
+        } catch (e) {
+            // directory does not exist.
+            this.filePicker.activateActionMode();
+        }
+    }
+
+    onAccept(): void {
+        if (this.filePicker.quickPick.activeItems.length > 0) {
+            let item = this.filePicker.quickPick.activeItems[0];
+            if (item.filetype & vscode.FileType.Directory) {
+                this.filePicker.goto(item.absolutePath + path.sep);
+            } else {
+                this.filePicker.hide();
+                openFile(item.absolutePath);
 
             }
         }
@@ -240,18 +281,22 @@ class FilePickerFileMode implements FilePickerMode {
 }
 
 class FilePickerActionMode implements FilePickerMode {
-    createItems: ActionItem[];
-    openItems: ActionItem[];
+    actionsOnNonExistingFiles: ActionItem[];
+    actionsOnExistingFiles: ActionItem[];
+    filePicker: FilePicker;
 
-    constructor() {
-        this.createItems = [
+    constructor(filePicker: FilePicker) {
+        this.filePicker = filePicker;
+
+        this.actionsOnNonExistingFiles = [
             new ActionItem("New file", (filePicker) => {
                 let value = filePicker.getCurrentValue();
                 filePicker.hide();
                 openNewFile(value);
             })
         ];
-        this.openItems = [
+
+        this.actionsOnExistingFiles = [
             new ActionItem("Add folder to workspace", (filePicker) => {
                 let value = filePicker.getCurrentValue();
                 filePicker.hide();
@@ -270,30 +315,26 @@ class FilePickerActionMode implements FilePickerMode {
         ];
     }
 
-    onUpdate(filePicker: FilePicker): void {
-        filePicker.quickPick.busy = true;
-        let currentValue = filePicker.getCurrentValue();
+    onUpdate(): void {
+        let currentValue = this.filePicker.getCurrentValue();
         let items = [];
         vscode.workspace.fs.stat(vscode.Uri.file(currentValue)).then(stat => {
-            items = this.openItems;
+            items = this.actionsOnExistingFiles;
         }, error => {
-            items = this.createItems;
+            items = this.actionsOnNonExistingFiles;
         }).then(() => {
-            filePicker.quickPick.items = items;
-            filePicker.quickPick.busy = false;
+            this.filePicker.quickPick.items = items;
         });
-
-
     }
 
-    onAccept(filePicker: FilePicker): void {
-        if (filePicker.quickPick.activeItems.length > 0) {
-            let item = filePicker.quickPick.activeItems[0];
+    onAccept(): void {
+        if (this.filePicker.quickPick.activeItems.length > 0) {
+            let item = this.filePicker.quickPick.activeItems[0];
 
             if (item instanceof ActionItem) {
-                item.run(filePicker);
+                item.run(this.filePicker);
             } else {
-                console.error("Unexpected error");
+                console.error("Unexpected error. Should never happend.");
             }
         }
     }
@@ -316,29 +357,163 @@ class ActionItem implements vscode.QuickPickItem {
 
 export class FileItem implements vscode.QuickPickItem {
     alwaysShow = true;
-    uri: vscode.Uri;
+    absolutePath: string;
     filetype: vscode.FileType;
-    basename: string;
+    relativePath: string;
     label: string;
 
-    constructor(uri: vscode.Uri, filetype: vscode.FileType) {
-        this.uri = uri;
+    constructor(uri: string, filetype: vscode.FileType) {
+        this.absolutePath = uri;
         this.filetype = filetype;
-        this.basename = path.basename(this.uri.fsPath);
+    }
 
-        switch (filetype) {
+    public setBaseUri(baseUri: string) {
+        this.relativePath = path.relative(baseUri, this.absolutePath);
+
+        switch (this.filetype) {
             case vscode.FileType.Directory:
-                this.label = `$(folder) ${this.basename}`;
+                this.label = `$(folder) ${this.relativePath}`;
                 break;
             case vscode.FileType.Directory | vscode.FileType.SymbolicLink:
-                this.label = `$(file-symlink-directory) ${this.basename}`;
+                this.label = `$(file-symlink-directory) ${this.relativePath}`;
                 break;
             case vscode.FileType.File | vscode.FileType.SymbolicLink:
-                this.label = `$(file-symlink-file) ${this.basename}`;
+                this.label = `$(file-symlink-file) ${this.relativePath}`;
             default:
-                this.label = `$(file) ${this.basename}`;
+                this.label = `$(file) ${this.relativePath}`;
                 break;
         }
     }
 
+    public hash(): string {
+        return this.absolutePath + this.filetype;
+    }
+}
+
+class DirectoryCache {
+    cache: Map<string, FileItem[]> = new Map();
+    hashes: Map<string, Set<string>> = new Map();
+    onUpdateCallback: (dirPath: string, items: FileItem[]) => any;
+    onBusyStart: (...args: any[]) => any;
+    onBusyEnd: (...args: any[]) => any;
+    lastScanTimes: Map<string, number> = new Map();
+
+    constructor(onUpdateCallback: (dirPath: string, items: FileItem[]) => any,
+        onBusyStart: (...args: any[]) => any,
+        onBusyEnd: (...args: any[]) => any) {
+
+        this.onUpdateCallback = onUpdateCallback;
+        this.onBusyStart = onBusyStart;
+        this.onBusyEnd = onBusyEnd;
+    }
+
+    public set(dirPath: string, items: FileItem[]) {
+        //todo diff check
+
+        let hashSet = new Set<string>(items.map(item => item.hash()));
+
+        if (this.cache.has(dirPath)) {
+            let existingHashes = this.hashes.get(dirPath);
+            let diff = symmetricDifference(hashSet, existingHashes);
+            if (diff.size === 0) {
+                console.log(`exists: ${dirPath}`);
+                return;
+            }
+        }
+        console.log(`new: ${dirPath}`);
+
+        this.cache.set(dirPath, items);
+        this.hashes.set(dirPath, hashSet);
+        this.onUpdateCallback(dirPath, items);
+    }
+
+    public get(dirPath: string): FileItem[] {
+        return this.cache.get(dirPath);
+    }
+
+    public has(dirPath: string) {
+        return this.cache.has(dirPath);
+    }
+
+    public getFileListForDir(dirPath: string, depth = 1) {
+
+        if (depth === 0 || !this.cache.has(dirPath)) {
+            return [];
+        }
+
+        let items = this.cache.get(dirPath);
+        return items.flatMap(item => {
+            item.setBaseUri(dirPath);
+
+            if (item.filetype & vscode.FileType.Directory) {
+                return [item, ...this.getFileListForDir(item.absolutePath, depth - 1)];
+            }
+
+            return [item];
+        });
+    }
+
+    public async update(dirPath: string, depth = 1) {
+
+        if (this.lastScanTimes.has(dirPath) && Date.now() - this.lastScanTimes.get(dirPath) < config.filePickerDirScanDebounceMilliseconds) {
+            return;
+        }
+
+        let start = Date.now();
+        await this._update(dirPath, depth);
+        console.log(`Scan directory time was ${Date.now() - start}ms`);
+    }
+
+    private async _update(dirPath: string, depth = 1) {
+        this.onBusyStart();
+        this.lastScanTimes.set(dirPath, Date.now());
+
+        try {
+            // Breadth First directory Search
+            let files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirPath));
+            let items = files.map((value: [string, vscode.FileType]) => {
+                let [name, type] = value;
+
+                return new FileItem(path.join(dirPath, name), type);
+            });
+
+            this.set(dirPath, items);
+
+            if (depth > 1) {
+                items.forEach(async item => {
+                    if (item.filetype & vscode.FileType.Directory) {
+                        await this._update(item.absolutePath, depth - 1);
+                    }
+                });
+            }
+        } catch (e) {
+            this.set(dirPath, []);
+        }
+
+        this.onBusyEnd();
+    }
+
+    
+}
+
+function normPath(filepath: string) {
+    let tmp = path.normalize(filepath);
+
+    if (tmp[tmp.length - 1] === path.sep) {
+        return tmp.slice(0, -1);
+    }
+
+    return tmp;
+}
+
+function symmetricDifference(setA, setB) {
+    const _difference = new Set(setA);
+    for (const elem of setB) {
+        if (_difference.has(elem)) {
+            _difference.delete(elem);
+        } else {
+            _difference.add(elem);
+        }
+    }
+    return _difference;
 }

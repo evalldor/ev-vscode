@@ -2,7 +2,7 @@
     "name": "ev-vscode",
     "displayName": "ev-vscode",
     "description": "",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "repository": {
         "url": "https://github.com/evalldor/ev-vscode"
     },
@@ -71,7 +71,7 @@
                 "ev.filepicker.searchDepth": {
                     "type": "number",
                     "default": 1,
-                    "description": "How deep to search for matching files. 1 corresponding to searching the current directory only."
+                    "description": "How deep to search for matching files. 1 corresponding to searching the current directory only. May cause vscode hang."
                 }
             }
         },
