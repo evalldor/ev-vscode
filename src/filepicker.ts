@@ -75,7 +75,7 @@ export class FilePicker {
     }
 
     public goto(filepath: string): void {
-        this.quickPick.value = filepath;
+        this.quickPick.value = path.normalize(filepath);
     }
 
     public activateActionMode(): void {
@@ -103,7 +103,7 @@ export class FilePicker {
     public goUpOneLevel(): void {
         let [currentDir, currentFilter] = this.getCurrentInput();
         if (currentFilter.length === 0) {
-            this.goto(path.dirname(currentDir));
+            this.goto(path.dirname(currentDir) + path.sep);
         } else {
             this.goto(currentDir);
         }
