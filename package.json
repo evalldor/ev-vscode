@@ -71,7 +71,12 @@
                 "ev.filepicker.searchDepth": {
                     "type": "number",
                     "default": 1,
-                    "description": "How deep to search for matching files. 1 corresponding to searching the current directory only. May cause vscode hang."
+                    "description": "How deep to search for matching files. 1 corresponding to searching the current directory only. May cause vscode to become unresponsive on large values."
+                },
+                "ev.filepicker.dirScanDebounceMilliseconds": {
+                    "type": "number",
+                    "default": 5000,
+                    "description": "How often a specific directory may be scaned for files."
                 }
             }
         },

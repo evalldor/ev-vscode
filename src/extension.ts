@@ -3,10 +3,7 @@ import { FilePicker } from './filepicker';
 import * as constants from './constants';
 import { UndoTree } from './undotree';
 import { config, updateConfig } from "./config";
-
-function capitalizeFirstLetter(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
+import * as util from "./util";
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -69,7 +66,7 @@ function initCursor(context: vscode.ExtensionContext) {
         let wordList = ["WordStart", "WordEnd"];
 
         if (wordList.indexOf(args.by) !== -1) {
-            let commandName = "cursor" + args.by + capitalizeFirstLetter(args.to) + (markIsSet ? "Select" : "");
+            let commandName = "cursor" + args.by + util.capitalizeFirstLetter(args.to) + (markIsSet ? "Select" : "");
             vscode.commands.executeCommand(commandName);
         } else {
             args["select"] = markIsSet;
@@ -159,7 +156,6 @@ function initUndoTree(context: vscode.ExtensionContext) {
     function registerCommand(commandId: string, run: (...args: any[]) => any): void {
         context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
     }
-
 
     let editorUndoTreeMap = new Map<string, UndoTree>();
 
