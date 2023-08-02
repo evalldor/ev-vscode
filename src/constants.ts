@@ -18,3 +18,4 @@ export const CONTEXT_FILEPICKER_ISVISIBLE = "ev.filepicker.isVisible";
 export const CONFIG_FILEPICKER_MATCHING_THRESHOLD = "filepicker.matchingThreshold";
 export const CONFIG_FILEPICKER_SEARCH_DEPTH = "filepicker.searchDepth";
 export const CONFIG_FILEPICKER_DIR_SCAN_DEBOUNCE = "filepicker.dirScanDebounceMilliseconds";
+export const CONFIG_FILEPICKER_RECURSIVE_IGNORE_FOLDERS = "filepicker.recursiveIgnoreFolders";

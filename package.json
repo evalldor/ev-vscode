@@ -2,7 +2,7 @@
     "name": "ev-vscode",
     "displayName": "ev-vscode",
     "description": "",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "repository": {
         "url": "https://github.com/evalldor/ev-vscode"
     },
@@ -66,17 +66,29 @@
                 "ev.filepicker.matchingThreshold": {
                     "type": "number",
                     "default": 0.49,
+                    "minimum": 0,
+                    "maximum": 1,
                     "description": "Don't show results with a score higher than this. Value between 0 and 1."
                 },
                 "ev.filepicker.searchDepth": {
                     "type": "number",
                     "default": 1,
+                    "minimum": 1,
                     "description": "How deep to search for matching files. 1 corresponding to searching the current directory only. May cause vscode to become unresponsive on large values."
                 },
                 "ev.filepicker.dirScanDebounceMilliseconds": {
                     "type": "number",
                     "default": 5000,
+                    "minimum": 0,
                     "description": "How often a specific directory may be scaned for files."
+                },
+                "ev.filepicker.recursiveIgnoreFolders": {
+                    "type": "array",
+                    "default": [
+                        "node_modules",
+                        ".*"
+                    ],
+                    "description": "Folders to ignore when searching recursively (depth > 1)."
                 }
             }
         },
@@ -104,6 +116,7 @@
         "typescript": "^5.1.3"
     },
     "dependencies": {
-        "fuse.js": "^6.6.2"
+        "fuse.js": "^6.6.2",
+        "ignore": "^5.2.4"
     }
 }

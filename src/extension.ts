@@ -199,8 +199,6 @@ function initUndoTree(context: vscode.ExtensionContext) {
     // for handling uri updates
     // vscode.workspace.onDidSaveTextDocument
 
-    
-
     context.subscriptions.push(editorChangeListener);
 }
 

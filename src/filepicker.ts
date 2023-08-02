@@ -147,7 +147,7 @@ class FilePickerFileMode implements FilePickerMode {
 
     private onCacheUpdate(key: string) {
         const [dirToList, currentFilter] = this.filePicker.getCurrentInput();
-
+        // console.log(`${key} subdir of ${dirToList}?: ${util.isSubdir(dirToList, key)}`);
         if (util.isSubdir(dirToList, key)) {
             this.render();
         }
@@ -342,7 +342,6 @@ class DirectoryCache {
     }
 
     public set(dirPath: string, items: FileItem[]) {
-
         let hashSet = new Set<string>(items.map(item => item.hash()));
 
         if (this.cache.has(dirPath)) {
@@ -376,8 +375,10 @@ class DirectoryCache {
         return items.flatMap(item => {
             item.setBaseUri(dirPath);
 
-            if (item.filetype & vscode.FileType.Directory) {
-                return [item, ...this.getFileListForDir(item.absolutePath, depth - 1)];
+            if ((item.filetype & vscode.FileType.Directory) && !config.filePickerRecursiveIgnoreFolders.ignores(item.relativePath)) {
+                let items = [item, ...this.getFileListForDir(item.absolutePath, depth - 1)];
+                items.forEach(item => item.setBaseUri(dirPath));
+                return items;
             }
 
             return [item];
@@ -385,43 +386,57 @@ class DirectoryCache {
     }
 
     public async update(dirPath: string, depth = 1) {
-
-        if (this.lastScanTimes.has(dirPath) && Date.now() - this.lastScanTimes.get(dirPath) < config.filePickerDirScanDebounceMilliseconds) {
-            return;
-        }
-
         // let start = Date.now();
         await this._update(dirPath, depth);
         // console.log(`Scan directory time was ${Date.now() - start}ms`);
     }
 
-    private async _update(dirPath: string, depth = 1) {
-        this.onBusyStart();
-        this.lastScanTimes.set(dirPath, Date.now());
+    num: number = 0;
+    private start() {
+        if (this.num === 0) {
+            this.onBusyStart();
+        }
+        this.num += 1;
+    }
 
+    private end() {
+        this.num -= 1;
+        if (this.num === 0) {
+            this.onBusyEnd();
+        }
+    }
+
+    private async _update(dirPath: string, depth = 1) {
+        this.start();
         try {
             // Breadth First directory Search
-            let files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirPath));
-            let items = files.map((value: [string, vscode.FileType]) => {
-                let [name, type] = value;
+            if (!this.lastScanTimes.has(dirPath) || (Date.now() - this.lastScanTimes.get(dirPath)) >= config.filePickerDirScanDebounceMilliseconds) {
+                this.lastScanTimes.set(dirPath, Date.now());
 
-                return new FileItem(path.join(dirPath, name), type);
-            });
+                let files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(dirPath));
+                let items = files.map((value: [string, vscode.FileType]) => {
+                    let [name, type] = value;
 
-            this.set(dirPath, items);
+                    return new FileItem(path.join(dirPath, name), type);
+                });
+
+                this.set(dirPath, items);
+            }
 
             if (depth > 1) {
-                items.forEach(async item => {
+                this.cache.get(dirPath).forEach(item => {
                     if (item.filetype & vscode.FileType.Directory) {
-                        await this._update(item.absolutePath, depth - 1);
+                        let relativePath = path.relative(dirPath, item.absolutePath);
+                        if (!config.filePickerRecursiveIgnoreFolders.ignores(relativePath)) {
+                            this._update(item.absolutePath, depth - 1);
+                        }
                     }
                 });
             }
         } catch (e) {
             this.set(dirPath, []);
         }
-
-        this.onBusyEnd();
+        this.end();
     }
 }
 
