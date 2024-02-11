@@ -4,6 +4,98 @@ import Fuse from 'fuse.js';
 import { config } from "./config";
 import * as actions from "./actions";
 import * as util from "./util";
+import * as fs from "fs";
+
+
+
+
+function isWorkspacePath(filePath: string): boolean {
+    const res = vscode.Uri.parse(filePath);
+    return res.scheme.toLowerCase() === "ws";
+}
+
+function getFsPathOfWorkspaceFolder(wsFolder: string): string {
+    for (const folder of vscode.workspace.workspaceFolders) {
+        if (folder.name === wsFolder) {
+            return folder.uri.fsPath;
+        }
+    }
+
+    return null;
+}
+
+function getWorkspaceFolderForFsPath(fsPath: string): [string, string] {
+
+    for (const folder of vscode.workspace.workspaceFolders) {
+        const relative = path.relative(folder.uri.fsPath, fsPath);
+        const isSubPath = (!relative.startsWith('..') && !path.isAbsolute(relative));
+        if (isSubPath) {
+            return [folder.name, folder.uri.fsPath];
+        }
+    }
+
+    return [null, null];
+}
+
+
+function splitWorkspacePath(workspacePath: string): [string, string] {
+    const res = vscode.Uri.parse(workspacePath);
+    const workspaceFolder = res.authority;
+    const subPath = res.path;
+
+    return [workspaceFolder, subPath];
+}
+
+
+function workspaceToFsPath(workspacePath) {
+    if (!isWorkspacePath(workspacePath)) {
+        return workspacePath;
+    }
+
+    const [wsFolder, subPath] = splitWorkspacePath(workspacePath);
+
+    const fsPath = getFsPathOfWorkspaceFolder(wsFolder);
+    return path.join(fsPath, subPath);
+}
+
+function fsToWorkspacePath(fsPath) {
+    if (isWorkspacePath(fsPath)) {
+        return fsPath;
+    }
+
+    let [wsFolder, wsFolderPath] = getWorkspaceFolderForFsPath(fsPath);
+
+    if (!wsFolder) {
+        throw Error(`${fsPath} is not in a workspace folder`);
+    }
+
+    return `ws://${path.join(wsFolder, path.relative(wsFolderPath, fsPath))}`;
+}
+
+
+
+class FPath {
+    constructor() {
+
+    }
+
+    public upOneLevel(): string {
+        return null;
+    }
+
+    public isDirectory(): string {
+        return null;
+    }
+
+    public listDirectory(): string {
+        return null;
+    }
+
+    public dirname(): string {
+        return null;
+    }
+}
+
 
 export class FilePicker {
     quickPick: vscode.QuickPick<FileItem>;
@@ -26,21 +118,72 @@ export class FilePicker {
         this.quickPick.onDidAccept(() => this.currentMode.onAccept());
     }
 
-    public show(): void {
+    public async show(): Promise<void> {
         this.activateFileMode();
         this.quickPick.value = "";
         actions.setFilepickerIsVisible(true);
         this.quickPick.show();
 
+        // for (const folder of vscode.workspace.workspaceFolders) {
+        //     console.log(folder);
+        // }
+
+        // console.log(fsToWorkspacePath("/home/lpt3/Dropbox/Projects/ev-vscode/.gitignore"));
+        // console.log(fsToWorkspacePath("/home/lpt3/Dropbox/Projects/ev-vscode"));
+        // console.log(fsToWorkspacePath("/home/lpt3/Dropbox/Projects/ev-vscode/"));
+        // console.log(fsToWorkspacePath("/home/lpt3/Dropbox/Projects/ev-vscode/src/u"));
+
+        // console.log(workspaceToFsPath("ws://ev-vscode/.gitignore"));
+        // console.log(workspaceToFsPath("ws://ev-vscode"));
+        // console.log(workspaceToFsPath("ws://ev-vscode/"));
+        // console.log(workspaceToFsPath("ws://ev-vscode/src/u"));
+
+        // console.log(path.normalize("ws://ev-vscode/src/u"));
+
+        // Add support for workspace paths: ws://<project>/<filepath>
         if (vscode.window.activeTextEditor && !vscode.window.activeTextEditor.document.isUntitled) {
             this.goto(path.dirname(vscode.window.activeTextEditor.document.uri.fsPath) + path.sep);
+        } else if (vscode.window.activeTerminal) {
+            let pid = await vscode.window.activeTerminal.processId;
+
+            // This only shows initial env. 
+            // let env = fs.readFileSync(path.join(path.sep, "proc", ""+pid, "environ"), {encoding: "utf-8"}).split("\0");
+            // env.forEach(str => {
+            //     if(str.startsWith("PWD=")) {
+            //         console.log(str); 
+            //         this.goto(str.substring(4) + path.sep);
+            //     }
+            // });
+            // console.log(env);
+
+            // TODO: Use current working dir / open files to determine if path
+            // should be replaced by symlinks
+            let cwd = fs.readlinkSync(path.join(path.sep, "proc", "" + pid, "cwd"));
+            this.goto(cwd + path.sep);
         } else {
+
+            if (vscode.workspace.workspaceFolders.length > 0) {
+
+            }
+
             this.goto(path.resolve("") + path.sep);
         }
     }
 
+    public hide(): void {
+        this.quickPick.hide();
+    }
+
+    public onHide(): void {
+        actions.setFilepickerIsVisible(false);
+    }
+
     public getCurrentInput(): [string, string] {
-        let filepath = this.getCurrentValue();
+        let filepath = this.quickPick.value;
+
+        if (filepath.length === 0) {
+            filepath = path.sep;
+        }
 
         let currentDir: string;
         let currentFilter: string;
@@ -63,20 +206,29 @@ export class FilePicker {
             return path.sep;
         }
 
-        return path.normalize(filepath);
-    }
-
-    public hide(): void {
-        this.quickPick.hide();
-    }
-
-    public onHide(): void {
-        actions.setFilepickerIsVisible(false);
+        return workspaceToFsPath(filepath);
     }
 
     public goto(filepath: string): void {
-        this.quickPick.value = path.normalize(filepath);
+        console.log(filepath);
+        if (!config.filePickerWorkspacePaths) {
+            this.quickPick.value = path.normalize(filepath);
+            return;
+        }
+
+
+        let [wsFolder, wsFolderPath] = getWorkspaceFolderForFsPath(filepath);
+
+        if (!wsFolder) {
+            this.quickPick.value = path.normalize(filepath);
+        } else {
+            this.quickPick.value = `ws://${path.join(wsFolder, path.relative(wsFolderPath, filepath))}`;
+            if (filepath.endsWith(path.sep)) {
+                this.quickPick.value += path.sep;
+            }
+        }
     }
+
 
     public activateActionMode(): void {
         if (this.currentMode !== this.actionMode) {
@@ -223,7 +375,7 @@ class FilePickerActionMode implements FilePickerMode {
         this.filePicker = filePicker;
 
         this.actionsOnNonExistingFiles = [
-            new ActionItem("New file", (filePicker) => {
+            new ActionItem("$(new-file) New file", (filePicker) => {
                 let value = filePicker.getCurrentValue();
                 filePicker.hide();
                 actions.openNewFile(value);
@@ -231,17 +383,17 @@ class FilePickerActionMode implements FilePickerMode {
         ];
 
         this.actionsOnExistingFiles = [
-            new ActionItem("Add folder to workspace", (filePicker) => {
+            new ActionItem("$(new-folder) Add folder to workspace", (filePicker) => {
                 let value = filePicker.getCurrentValue();
                 filePicker.hide();
                 actions.addWorkspaceFolder(value);
             }),
-            new ActionItem("Open folder", (filePicker) => {
+            new ActionItem("$(folder-opened) Open folder", (filePicker) => {
                 let value = filePicker.getCurrentValue();
                 filePicker.hide();
                 actions.openFolder(value);
             }),
-            new ActionItem("Open in new window", (filePicker) => {
+            new ActionItem("$(empty-window) Open in new window", (filePicker) => {
                 let value = filePicker.getCurrentValue();
                 filePicker.hide();
                 actions.openInNewWindow(value);
@@ -391,17 +543,17 @@ class DirectoryCache {
         // console.log(`Scan directory time was ${Date.now() - start}ms`);
     }
 
-    num: number = 0;
+    private scanOpsCounter: number = 0;
     private start() {
-        if (this.num === 0) {
+        if (this.scanOpsCounter === 0) {
             this.onBusyStart();
         }
-        this.num += 1;
+        this.scanOpsCounter += 1;
     }
 
     private end() {
-        this.num -= 1;
-        if (this.num === 0) {
+        this.scanOpsCounter -= 1;
+        if (this.scanOpsCounter === 0) {
             this.onBusyEnd();
         }
     }

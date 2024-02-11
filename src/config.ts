@@ -10,6 +10,7 @@ export namespace config {
         "node_modules",
         ".*"
     ]);
+    export let filePickerWorkspacePaths: boolean = true;
 }
 
 export function updateConfig() {
@@ -18,6 +19,7 @@ export function updateConfig() {
     config.filePickerMatchingThreshold = newConfig.get(constants.CONFIG_FILEPICKER_MATCHING_THRESHOLD);
     config.filePickerDirScanDebounceMilliseconds = newConfig.get(constants.CONFIG_FILEPICKER_DIR_SCAN_DEBOUNCE);
     config.filePickerRecursiveIgnoreFolders = ignore().add(newConfig.get(constants.CONFIG_FILEPICKER_RECURSIVE_IGNORE_FOLDERS));
+    config.filePickerWorkspacePaths = newConfig.get(constants.CONFIG_FILEPICKER_WORKSPACE_PATHS);
 }
 
 

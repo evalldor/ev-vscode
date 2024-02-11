@@ -1,6 +1,6 @@
 
 export const COMMAND_FILEPICKER_OPEN = "ev.filepicker.open";
-export const COMMAND_FILEPICKER_TOGGLE_MODE = "ev.filepicker.toggleMode";
+export const COMMAND_FILEPICKER_TOGGLE_ACTION_MODE = "ev.filepicker.toggleMode";
 export const COMMAND_FILEPICKER_GO_UP = "ev.filepicker.goUpOneLevel";
 export const COMMAND_FILEPICKER_SET_VALUE_FROM_SELECTED = "ev.filepicker.setValueFromSelectedItem";
 
@@ -19,3 +19,4 @@ export const CONFIG_FILEPICKER_MATCHING_THRESHOLD = "filepicker.matchingThreshol
 export const CONFIG_FILEPICKER_SEARCH_DEPTH = "filepicker.searchDepth";
 export const CONFIG_FILEPICKER_DIR_SCAN_DEBOUNCE = "filepicker.dirScanDebounceMilliseconds";
 export const CONFIG_FILEPICKER_RECURSIVE_IGNORE_FOLDERS = "filepicker.recursiveIgnoreFolders";
+export const CONFIG_FILEPICKER_WORKSPACE_PATHS = "filepicker.workspacePaths";

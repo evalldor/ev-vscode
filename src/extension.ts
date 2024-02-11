@@ -7,7 +7,7 @@ import * as util from "./util";
 
 export function activate(context: vscode.ExtensionContext) {
 
-    // vscode.commands.getCommands().then(cmds => console.log(cmds));
+    vscode.commands.getCommands().then(cmds => console.log(cmds));
 
     function registerCommand(commandId: string, run: (...args: any[]) => any): void {
         context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
@@ -37,7 +37,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() { }
-
 
 function initCursor(context: vscode.ExtensionContext) {
     function registerCommand(commandId: string, run: (...args: any[]) => any): void {
@@ -139,7 +138,7 @@ function initFilepicker(context: vscode.ExtensionContext) {
         filepicker.show();
     });
 
-    registerCommand(constants.COMMAND_FILEPICKER_TOGGLE_MODE, (args) => {
+    registerCommand(constants.COMMAND_FILEPICKER_TOGGLE_ACTION_MODE, (args) => {
         filepicker.toggleMode();
     });
 
