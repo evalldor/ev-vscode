@@ -45,7 +45,6 @@ function getWorkspaceFolderForFsPath(fsPath: string): [string, string] {
 
 
 function splitWorkspacePath(workspacePath: string): [string, string] {
-    // console.log(workspacePath);
     const res = vscode.Uri.parse(workspacePath);
     const workspaceFolder = res.authority;
     const subPath = res.path;
@@ -251,8 +250,6 @@ class FPath {
     }
 
     public isSubpathOf(other: FPath): boolean {
-        // console.log(this._path, other._path);
-
         if(other.isWorkspaceRoot()){
             if(this.isWorkspaceRoot()) {
                 return true;
@@ -298,36 +295,7 @@ export class FilePicker {
         this.quickPick.value = "";
         actions.setFilepickerIsVisible(true);
         this.quickPick.show();
-        // console.log("lkasd");
-        
-        // for (const folder of vscode.workspace.workspaceFolders) {
-        //     console.log(folder);
-        // }
-        // console.log(vscode.Uri.parse(""));
-        // console.log(vscode.Uri.parse("xcookie"));
-        // console.log(vscode.Uri.parse("ws://asd/asd"));
-        // console.log(vscode.Uri.parse("/asd/asd"));
-        // console.log(vscode.Uri.parse("ws://"));
-        // console.log(vscode.Uri.parse("ws:///"));
-        // console.log(vscode.Uri.parse("ws:/"));
-        // console.log(vscode.Uri.parse("ws:///"));
-        // console.log(vscode.Uri.parse("ws://hge"));
-        // console.log(vscode.Uri.parse("ws://hge"));
-        // console.log(vscode.Uri.parse("ws://hge/"));
-        // console.log(vscode.Uri.parse("ws://hge/a"));
-        // console.log(fsToWorkspacePath("/home/erival/"));
-        // console.log(fsToWorkspacePath("/home/lpt3/Dropbox/Projects/ev-vscode"));
-        // console.log(fsToWorkspacePath("/home/lpt3/Dropbox/Projects/ev-vscode/"));
-        // console.log(fsToWorkspacePath("/home/lpt3/Dropbox/Projects/ev-vscode/src/u"));
 
-        // console.log(workspaceToFsPath("ws://ev-vscode/.gitignore"));
-        // console.log(workspaceToFsPath("ws://ev-vscode"));
-        // console.log(workspaceToFsPath("ws://ev-vscode/"));
-        // console.log(workspaceToFsPath("ws://ev-vscode/src/u"));
-
-        // console.log(path.normalize("ws://ev-vscode/src/u"));
-
-        // Add support for workspace paths: ws://<project>/<filepath>
         if (vscode.window.activeTextEditor && !vscode.window.activeTextEditor.document.isUntitled) {
             this.goto(new FPath(path.dirname(vscode.window.activeTextEditor.document.uri.fsPath) + path.sep));
         } else if (vscode.window.activeTerminal) {
@@ -349,11 +317,18 @@ export class FilePicker {
             this.goto(new FPath(cwd + path.sep));
         } else {
 
-            // if (vscode.workspace.workspaceFolders.length > 0) {
+            if (vscode.workspace.workspaceFolders){
+                if(vscode.workspace.workspaceFolders.length === 1) {
+                    this.goto(new FPath(vscode.workspace.workspaceFolders[0].uri.fsPath).withEndingSlash());
+                } else {
+                    this.goto(FPath.ws());
+                }
 
-            // }
+            } else {
+                this.goto(FPath.home());
+            }
             
-            this.goto(FPath.home());
+            
         }
     }
 
@@ -618,7 +593,6 @@ class ActionItem implements vscode.QuickPickItem {
 class FileItem implements vscode.QuickPickItem {
     alwaysShow = true;
     absolutePath: FPath;
-    // filetype: vscode.FileType;
     relativePath: string;
     label: string;
 
@@ -629,7 +603,7 @@ class FileItem implements vscode.QuickPickItem {
     public async setBaseUri(baseUri: FPath) {
         this.relativePath = baseUri.relativeTo(this.absolutePath).toFsPath();
         const type = await this.absolutePath.getType();
-        // console.log(baseUri, this.absolutePath);
+
         switch (type) {
             case vscode.FileType.Directory:
                 this.label = `$(folder) ${this.relativePath}`;
@@ -697,8 +671,6 @@ class DirectoryCache {
             return [];
         }
 
-        console.log("getFileListForDir", dirPath);
-
         let items = this.cache.get(dirPath.hash());
         return (await Promise.all(items.map(async item => {
             await item.setBaseUri(dirPath);
@@ -730,14 +702,12 @@ class DirectoryCache {
             if (!this.lastScanTimes.has(dirPath.hash()) || (Date.now() - this.lastScanTimes.get(dirPath.hash())) >= config.filePickerDirScanDebounceMilliseconds) {
                 this.lastScanTimes.set(dirPath.hash(), Date.now());
 
-
                 let items = (await dirPath.listDirectory()).map(fpath => new FileItem(fpath));
 
                 this.set(dirPath, items);
             }
 
             if (depth > 1) {
-
                 for await (const item of this.cache.get(dirPath.hash())) {
                     if (item.absolutePath.isDirectory()) {
                         let relativePath = dirPath.relativeTo(item.absolutePath).toFsPath();
