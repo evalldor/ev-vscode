@@ -317,7 +317,7 @@ export class FilePicker {
             this.goto(new FPath(cwd + path.sep));
         } else {
 
-            if (vscode.workspace.workspaceFolders){
+            if (config.filePickerWorkspacePaths && vscode.workspace.workspaceFolders){
                 if(vscode.workspace.workspaceFolders.length === 1) {
                     this.goto(new FPath(vscode.workspace.workspaceFolders[0].uri.fsPath).withEndingSlash());
                 } else {
