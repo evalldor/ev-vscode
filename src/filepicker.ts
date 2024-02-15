@@ -285,7 +285,12 @@ export class FPath {
     }
 
     public hash(): string {
-        return this._path;
+
+        if(this.isWorkspaceRoot()) {
+            return "ws://";
+        }
+
+        return path.normalize(this.toFsPath());
     }
 
 }
@@ -360,27 +365,6 @@ export class FilePicker {
 
     public onHide(): void {
         actions.setFilepickerIsVisible(false);
-    }
-
-    public getCurrentInput(): [string, string] {
-        let filepath = this.quickPick.value;
-
-        if (filepath.length === 0) {
-            filepath = path.sep;
-        }
-
-        let currentDir: string;
-        let currentFilter: string;
-
-        if (filepath.endsWith(path.sep)) {
-            currentDir = filepath;
-            currentFilter = "";
-        } else {
-            currentDir = path.dirname(filepath) + path.sep;
-            currentFilter = path.basename(filepath).toLowerCase();
-        }
-
-        return [currentDir, currentFilter];
     }
 
     public getCurrentValue(): FPath {
@@ -461,8 +445,6 @@ class FilePickerFileMode implements FilePickerMode {
     private onCacheUpdate(key: FPath) {
         const currPath = this.filePicker.getCurrentValue();
         const dirToList = currPath.currentDirectory();
-        // const currentFilter = currPath.currentFilter();
-        // const [dirToList, currentFilter] = this.filePicker.getCurrentInput();
         // console.log(`${key.toFsPath()} subdir of ${dirToList.toFsPath()}?: ${util.isSubdir(dirToList.toFsPath(), key.toFsPath())}`);
 
         if (key.isSubpathOf(dirToList)) {
@@ -474,7 +456,6 @@ class FilePickerFileMode implements FilePickerMode {
         const currPath = this.filePicker.getCurrentValue();
         const dirToList = currPath.currentDirectory();
         const currentFilter = currPath.currentFilter();
-        // const [dirToList, currentFilter] = this.filePicker.getCurrentInput();
 
         if (currentFilter.length === 0) {
             // When no filter is given, directories are listed before files.
