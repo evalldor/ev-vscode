@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as constants from "./constants";
+import * as util from "./util";
 
 export function openNewFile(filepath: string): void {
     vscode.workspace
@@ -15,6 +16,22 @@ export function openFile(filepath: string): void {
 
 export function addWorkspaceFolder(filepath: string) {
     vscode.workspace.updateWorkspaceFolders(vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders.length : 0, null, { uri: vscode.Uri.file(filepath) });
+}
+
+export function removeWorkspaceFolder(fsPath: string) {
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+
+        let index = -1;
+        for (let i = 0; i < vscode.workspace.workspaceFolders.length; i++) {
+            if (util.isPathsEqual(vscode.workspace.workspaceFolders[i].uri.fsPath, fsPath)) {
+                index = i;
+            }
+        }
+
+        if (index > -1) {
+            vscode.workspace.updateWorkspaceFolders(index, 1);
+        }
+    }
 }
 
 export function openFolder(filepath: string): void {

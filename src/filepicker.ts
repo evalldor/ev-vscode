@@ -8,14 +8,14 @@ import * as util from "./util";
 
 
 function isWorkspacePath(filePath: string): boolean {
-    try{
+    try {
         const res = vscode.Uri.parse(filePath);
         return res.scheme.toLowerCase() === "ws";
-    }catch(e) {
+    } catch (e) {
         console.error(e);
         console.error(filePath);
     }
-    
+
     return false;
 }
 
@@ -53,6 +53,8 @@ function splitWorkspacePath(workspacePath: string): [string, string] {
 }
 
 
+
+
 function workspaceToFsPath(workspacePath) {
     if (!isWorkspacePath(workspacePath)) {
         return workspacePath;
@@ -63,6 +65,18 @@ function workspaceToFsPath(workspacePath) {
     const fsPath = getFsPathOfWorkspaceFolder(wsFolder);
 
     return path.join(fsPath, subPath);
+}
+
+function isWorkspaceFolder(fsPath: string): boolean {
+    if (vscode.workspace.workspaceFolders) {
+        for (const folder of vscode.workspace.workspaceFolders) {
+            if (util.isPathsEqual(fsPath, folder.uri.fsPath)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 function fsToWorkspacePath(fsPath) {
@@ -148,7 +162,7 @@ export class FPath {
     }
 
     public async isDirectory(): Promise<boolean> {
-        if(this.isWorkspaceRoot()) {
+        if (this.isWorkspaceRoot()) {
             return true;
         }
 
@@ -198,7 +212,7 @@ export class FPath {
 
         let val = path.dirname(this._path);
 
-        if(!val.endsWith(path.sep) || val.endsWith(":"+path.sep)) {
+        if (!val.endsWith(path.sep) || val.endsWith(":" + path.sep)) {
             val += path.sep;
         }
 
@@ -227,7 +241,7 @@ export class FPath {
         if (this._path.endsWith(path.sep)) {
             return "";
         }
-        
+
         return this._path.split(path.sep).at(-1).toLowerCase();
     }
 
@@ -235,14 +249,22 @@ export class FPath {
         return this._path.length >= 3 && "ws://".indexOf(this._path.toLowerCase()) === 0;
     }
 
+    public isWorkspaceFolder(): boolean {
+        if (this.isWorkspaceRoot()) {
+            return false;
+        }
+
+        return isWorkspaceFolder(this.toFsPath());
+    }
+
     public async exists(): Promise<boolean> {
-        if(this.isWorkspaceRoot()) {
+        if (this.isWorkspaceRoot()) {
             return true;
         }
-        
-        try{
+
+        try {
             const stat = await vscode.workspace.fs.stat(vscode.Uri.file(this.toFsPath()));
-        } catch(e) {
+        } catch (e) {
             return false;
         }
 
@@ -250,15 +272,15 @@ export class FPath {
     }
 
     public isSubpathOf(other: FPath): boolean {
-        if(other.isWorkspaceRoot()){
-            if(this.isWorkspaceRoot()) {
+        if (other.isWorkspaceRoot()) {
+            if (this.isWorkspaceRoot()) {
                 return true;
             }
 
             const [wsFolder, wsFolderPath] = getWorkspaceFolderForFsPath(this.toFsPath());
             return Boolean(wsFolder);
         }
-        
+
         return util.isSubdir(other.toFsPath(), this.toFsPath());
     }
 
@@ -317,8 +339,8 @@ export class FilePicker {
             this.goto(new FPath(cwd + path.sep));
         } else {
 
-            if (config.filePickerWorkspacePaths && vscode.workspace.workspaceFolders){
-                if(vscode.workspace.workspaceFolders.length === 1) {
+            if (config.filePickerWorkspacePaths && vscode.workspace.workspaceFolders) {
+                if (vscode.workspace.workspaceFolders.length === 1) {
                     this.goto(new FPath(vscode.workspace.workspaceFolders[0].uri.fsPath).withEndingSlash());
                 } else {
                     this.goto(FPath.ws());
@@ -327,8 +349,8 @@ export class FilePicker {
             } else {
                 this.goto(FPath.home());
             }
-            
-            
+
+
         }
     }
 
@@ -339,7 +361,7 @@ export class FilePicker {
     public onHide(): void {
         actions.setFilepickerIsVisible(false);
     }
-    
+
     public getCurrentInput(): [string, string] {
         let filepath = this.quickPick.value;
 
@@ -443,7 +465,7 @@ class FilePickerFileMode implements FilePickerMode {
         // const [dirToList, currentFilter] = this.filePicker.getCurrentInput();
         // console.log(`${key.toFsPath()} subdir of ${dirToList.toFsPath()}?: ${util.isSubdir(dirToList.toFsPath(), key.toFsPath())}`);
 
-       if (key.isSubpathOf(dirToList)) {
+        if (key.isSubpathOf(dirToList)) {
             this.render();
         }
     }
@@ -517,6 +539,8 @@ class FilePickerFileMode implements FilePickerMode {
 class FilePickerActionMode implements FilePickerMode {
     actionsOnNonExistingFiles: ActionItem[];
     actionsOnExistingFiles: ActionItem[];
+    actionsOnWorkspaceFolders: ActionItem[];
+    actionsOnNonWorkspaceFolders: ActionItem[];
     filePicker: FilePicker;
 
     constructor(filePicker: FilePicker) {
@@ -531,11 +555,7 @@ class FilePickerActionMode implements FilePickerMode {
         ];
 
         this.actionsOnExistingFiles = [
-            new ActionItem("$(new-folder) Add folder to workspace", (filePicker) => {
-                let value = filePicker.getCurrentValue();
-                filePicker.hide();
-                actions.addWorkspaceFolder(value.toFsPath());
-            }),
+            
             new ActionItem("$(folder-opened) Open folder", (filePicker) => {
                 let value = filePicker.getCurrentValue();
                 filePicker.hide();
@@ -547,14 +567,35 @@ class FilePickerActionMode implements FilePickerMode {
                 actions.openInNewWindow(value.toFsPath());
             })
         ];
+
+        this.actionsOnNonWorkspaceFolders = [
+            new ActionItem("$(new-folder) Add folder to workspace", (filePicker) => {
+                let value = filePicker.getCurrentValue();
+                filePicker.hide();
+                actions.addWorkspaceFolder(value.toFsPath());
+            }),
+        ];
+
+        this.actionsOnWorkspaceFolders = [
+            new ActionItem("$(trash) Remove folder from workspace", (filePicker) => {
+                let value = filePicker.getCurrentValue();
+                filePicker.hide();
+                actions.removeWorkspaceFolder(value.toFsPath());
+            }),
+        ];
     }
 
     async onUpdate(): Promise<void> {
         let currentValue = this.filePicker.getCurrentValue();
         let items = [];
 
-        if(await currentValue.exists()) {
-            items = this.actionsOnExistingFiles;
+        if (await currentValue.exists()) {
+            if(currentValue.isWorkspaceFolder()) {
+                items = this.actionsOnWorkspaceFolders;
+            } else {
+                items = this.actionsOnNonWorkspaceFolders;
+            }
+            items = items.concat(this.actionsOnExistingFiles);
         } else {
             items = this.actionsOnNonExistingFiles;
         }
@@ -666,7 +707,7 @@ class DirectoryCache {
     }
 
     public async getFileListForDir(dirPath: FPath, depth = 1): Promise<FileItem[]> {
-        
+
         if (depth === 0 || !this.cache.has(dirPath.hash())) {
             return [];
         }
@@ -696,7 +737,7 @@ class DirectoryCache {
     }
 
     private async _update(dirPath: FPath, depth = 1) {
-        
+
         try {
             // Breadth First directory Search
             if (!this.lastScanTimes.has(dirPath.hash()) || (Date.now() - this.lastScanTimes.get(dirPath.hash())) >= config.filePickerDirScanDebounceMilliseconds) {
@@ -720,7 +761,7 @@ class DirectoryCache {
         } catch (e) {
             this.set(dirPath, []);
         }
-        
+
     }
 }
 

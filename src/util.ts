@@ -32,3 +32,11 @@ export function isSubdir(parent: string, child: string) {
 export function capitalizeFirstLetter(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
+
+export function isPathsEqual(path1: string, path2: string): boolean {
+    path1 = path.resolve(path1);
+    path2 = path.resolve(path2);
+
+    return path1 === path2;
+}
+
