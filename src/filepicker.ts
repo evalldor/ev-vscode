@@ -83,7 +83,7 @@ function fsToWorkspacePath(fsPath) {
 
 
 
-class FPath {
+export class FPath {
 
     private _path: string;
     private _type: vscode.FileType | undefined;

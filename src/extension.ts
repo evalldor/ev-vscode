@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FilePicker } from './filepicker';
+import { FilePicker, FPath } from './filepicker';
 import * as constants from './constants';
 import { UndoTree } from './undotree';
 import { config, updateConfig } from "./config";
@@ -148,6 +148,10 @@ function initFilepicker(context: vscode.ExtensionContext) {
 
     registerCommand(constants.COMMAND_FILEPICKER_SET_VALUE_FROM_SELECTED, (args) => {
         filepicker.setValueFromSelectedItem();
+    });
+
+    registerCommand(constants.COMMAND_FILEPICKER_GO_TO, (uri) => {
+        filepicker.goto(new FPath(uri));
     });
 }
 

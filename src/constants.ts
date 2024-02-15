@@ -3,6 +3,7 @@ export const COMMAND_FILEPICKER_OPEN = "ev.filepicker.open";
 export const COMMAND_FILEPICKER_TOGGLE_ACTION_MODE = "ev.filepicker.toggleMode";
 export const COMMAND_FILEPICKER_GO_UP = "ev.filepicker.goUpOneLevel";
 export const COMMAND_FILEPICKER_SET_VALUE_FROM_SELECTED = "ev.filepicker.setValueFromSelectedItem";
+export const COMMAND_FILEPICKER_GO_TO = "ev.filepicker.goto";
 
 export const COMMAND_CURSOR_MOVE = "ev.cursor.move";
 export const COMMAND_SCROLL = "ev.scroll";

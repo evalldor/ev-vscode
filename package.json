@@ -52,6 +52,10 @@
                 "title": "EV: Go to parent directory in filepicker"
             },
             {
+                "command": "ev.filepicker.goto",
+                "title": "EV: Go to path"
+            },
+            {
                 "command": "ev.filepicker.setValueFromSelectedItem",
                 "title": "EV: Set the current value to that of the selected item, without opening it."
             },
