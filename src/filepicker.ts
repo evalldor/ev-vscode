@@ -32,7 +32,7 @@ function getFsPathOfWorkspaceFolder(wsFolder: string): string {
 function getWorkspaceFolderForFsPath(fsPath: string): [string, string] {
     if (vscode.workspace.workspaceFolders) {
         for (const folder of vscode.workspace.workspaceFolders) {
-            const relative = path.relative(folder.uri.fsPath, fsPath);
+            const relative = path.relative(fs.realpathSync(folder.uri.fsPath), fs.realpathSync(fsPath));
             const isSubPath = (!relative.startsWith('..') && !path.isAbsolute(relative));
             if (isSubPath) {
                 return [folder.name, folder.uri.fsPath];
@@ -90,7 +90,7 @@ function fsToWorkspacePath(fsPath) {
         return fsPath;
     }
 
-    return `ws://${path.join(wsFolder, path.relative(wsFolderPath, fsPath))}`;
+    return `ws://${path.join(wsFolder, path.relative(fs.realpathSync(wsFolderPath), fs.realpathSync(fsPath)))}`;
 }
 
 
@@ -286,7 +286,7 @@ export class FPath {
 
     public hash(): string {
 
-        if(this.isWorkspaceRoot()) {
+        if (this.isWorkspaceRoot()) {
             return "ws://";
         }
 
@@ -536,7 +536,7 @@ class FilePickerActionMode implements FilePickerMode {
         ];
 
         this.actionsOnExistingFiles = [
-            
+
             new ActionItem("$(folder-opened) Open folder", (filePicker) => {
                 let value = filePicker.getCurrentValue();
                 filePicker.hide();
@@ -571,7 +571,7 @@ class FilePickerActionMode implements FilePickerMode {
         let items = [];
 
         if (await currentValue.exists()) {
-            if(currentValue.isWorkspaceFolder()) {
+            if (currentValue.isWorkspaceFolder()) {
                 items = this.actionsOnWorkspaceFolders;
             } else {
                 items = this.actionsOnNonWorkspaceFolders;
@@ -790,7 +790,7 @@ class FuseFilter implements ListFilter {
             // ignoreLocation: true,
             keys: ['relativePath'],
             threshold: config.filePickerMatchingThreshold
-            //includeMatches: true
+            // includeMatches: true
         };
 
         const fuse: Fuse<FileItem> = new Fuse(items, options);

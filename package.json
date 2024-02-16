@@ -2,7 +2,7 @@
     "name": "ev-vscode",
     "displayName": "ev-vscode",
     "description": "",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "repository": {
         "url": "https://github.com/evalldor/ev-vscode"
     },
